@@ -7,6 +7,6 @@ type User struct {
 	Name       string     `db:"name"`
 	Email      string     `db:"email"`
 	Password   string     `db:"password"`
-	RoleID     string     `db:"role_id"`
+	RoleID     int        `db:"role_id"`
 	LastAccess *time.Time `db:"last_access"`
 }

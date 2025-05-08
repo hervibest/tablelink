@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "proto/userpb";
+
+import "google/protobuf/timestamp.proto";
+
+service UsersService {
+    rpc ListUsers (ListUsersRequest) returns (ListUsersResponse);
+    rpc CreateUser (CreateUserRequest) returns (CreateUserReponse);
+    rpc UpdateUser (UpdateUserRequest) returns (UpdateUserReponse);
+    rpc DeleteUser (DeleteUserRequest) returns (DeleteeUserReponse);
+}
+
+message User {
+    int32 id  = 1;
+    string name = 2;
+    string email = 3;
+    string password = 4;
+    int32 role_id = 5;
+    string last_access = 6;
+}
+
+message ListUsersRequest {
+    int32 role_id = 1;
+    string section = 2;
+    string route = 3;
+}
+
+message ListUsersResponse {
+    bool status = 1;
+    string message = 2;
+    repeated User users = 3;
+}
+
+message CreateUserRequest {
+    int32 role_id = 1;
+    string section = 2;
+    string route = 3;
+    User user = 4;
+}
+
+message CreateUserReponse {
+    bool status = 1;
+    string message = 2;  
+}
+
+message UpdateUserRequest {
+    int32 role_id = 1;
+    string section = 2;
+    string route = 3;
+    User user = 4;
+}
+
+message UpdateUserReponse {
+    bool status = 1;
+    string message = 2;  
+}
+
+message DeleteUserRequest {
+    int32 role_id = 1;
+    string section = 2;
+    string route = 3;
+    User user = 4;
+}
+
+message DeleteeUserReponse {
+    bool status = 1;
+    string message = 2;  
+}

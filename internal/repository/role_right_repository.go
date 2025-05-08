@@ -9,7 +9,7 @@ import (
 )
 
 type RoleRightRepository interface {
-	CheckPermission(ctx context.Context, roleID, section, route string) (*domain.RoleRight, error)
+	CheckPermission(ctx context.Context, roleID int, section, route string) (*domain.RoleRight, error)
 }
 
 type roleRightRepository struct {
@@ -22,7 +22,7 @@ func NewRoleRightRepository(pool *pgxpool.Pool) RoleRightRepository {
 	}
 }
 
-func (r *roleRightRepository) CheckPermission(ctx context.Context, roleID, section, route string) (*domain.RoleRight, error) {
+func (r *roleRightRepository) CheckPermission(ctx context.Context, roleID int, section, route string) (*domain.RoleRight, error) {
 	rr := new(domain.RoleRight)
 	query := `SELECT id, role_id, section, route, r_create, r_create, r_create, r_create
 	 name FROM roles WHERE id = $1
