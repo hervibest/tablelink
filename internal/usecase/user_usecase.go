@@ -2,84 +2,100 @@ package usecase
 
 import (
 	"context"
-	"errors"
-	"fmt"
+	"tablelink/internal/constant/message"
 	"tablelink/internal/domain"
+	"tablelink/internal/helper"
+	"tablelink/internal/model"
+	"tablelink/internal/model/converter"
 	"tablelink/internal/repository"
+
+	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type UserUseCase interface {
-	ListUser(ctx context.Context, roleID int, section, route string) ([]*domain.User, error)
-	CreateUser(ctx context.Context, roleID int, section, route string, user *domain.User) (*domain.User, error)
-	UpdateUser(ctx context.Context, roleID int, section, route string, user *domain.User) (*domain.User, error)
-	DeleteUser(ctx context.Context, roleID int, section, route string, userID int) error
+	GetAllUser(ctx context.Context) ([]*model.UserResponse, error)
+	CreateUser(ctx context.Context, request *model.CreateUserRequest) error
+	UpdateUser(ctx context.Context, request *model.UpdateUserRequest) error
+	DeleteUser(ctx context.Context, userID int) error
 }
 
 type userUseCase struct {
 	userRepo  repository.UserRepository
 	rightRepo repository.RoleRightRepository
+	logger    helper.Logger
 }
 
-func NewUserUseCase(userRepo repository.UserRepository, rightRepo repository.RoleRightRepository) UserUseCase {
+func NewUserUseCase(userRepo repository.UserRepository, rightRepo repository.RoleRightRepository, logger helper.Logger) UserUseCase {
 	return &userUseCase{
 		userRepo:  userRepo,
 		rightRepo: rightRepo,
+		logger:    logger,
 	}
 }
 
-func (u *userUseCase) authorize(ctx context.Context, roleID int, section, route, action string) error {
-	rights, err := u.rightRepo.CheckPermission(ctx, roleID, section, route)
+func (u *userUseCase) GetAllUser(ctx context.Context) ([]*model.UserResponse, error) {
+	users, err := u.userRepo.ListAll(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to check permission with err %v", err)
+		u.logger.Errorf("failed to get list users in database : %v", err)
+		return nil, status.Error(codes.Internal, message.InternalGracefulError)
 	}
 
-	var allowed bool
-	switch action {
-	case "create":
-		allowed = rights.RCreate
-	case "read":
-		allowed = rights.RRead
-	case "update":
-		allowed = rights.RUpdate
-	case "delete":
-		allowed = rights.RDelete
+	return converter.UsersToResponses(users), nil
+}
+
+func (u *userUseCase) CreateUser(ctx context.Context, request *model.CreateUserRequest) error {
+	total, err := u.userRepo.CountByEmail(ctx, request.Email)
+	if err != nil {
+		u.logger.Errorf("failed to count user from database : %v", err)
+		return status.Error(codes.Internal, message.InternalGracefulError)
 	}
-	if !allowed {
-		return errors.New("permission denie")
+
+	if total > 0 {
+		return status.Error(codes.AlreadyExists, message.ClientUserAlreadyExist)
 	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
+	if err != nil {
+		u.logger.Errorf("failed to generated hashed user passwod using bcrypt : %v", err)
+		return status.Error(codes.Internal, message.InternalGracefulError)
+	}
+
+	user := &domain.User{
+		Name:     request.Name,
+		Email:    request.Email,
+		Password: string(hashedPassword),
+		RoleID:   request.RoleID,
+	}
+
+	if err := u.userRepo.Create(ctx, user); err != nil {
+		u.logger.Errorf("failed to create user in database : %v", err)
+		return status.Error(codes.Internal, message.InternalGracefulError)
+	}
+
 	return nil
-
 }
 
-func (u *userUseCase) ListUser(ctx context.Context, roleID int, section, route string) ([]*domain.User, error) {
-	if err := u.authorize(ctx, roleID, section, route, "read"); err != nil {
-		return nil, err
+func (u *userUseCase) UpdateUser(ctx context.Context, request *model.UpdateUserRequest) error {
+	user := &domain.User{
+		ID:   request.UserID,
+		Name: request.Name,
 	}
 
-	return u.userRepo.ListAll(ctx)
+	if err := u.userRepo.UpdateName(ctx, user); err != nil {
+		u.logger.Errorf("failed to update user in database : %v", err)
+		return status.Error(codes.Internal, message.InternalGracefulError)
+	}
+
+	return nil
 }
 
-func (u *userUseCase) CreateUser(ctx context.Context, roleID int, section, route string, user *domain.User) (*domain.User, error) {
-	if err := u.authorize(ctx, roleID, section, route, "create"); err != nil {
-		return nil, err
+func (u *userUseCase) DeleteUser(ctx context.Context, userID int) error {
+	if err := u.userRepo.Delete(ctx, userID); err != nil {
+		u.logger.Errorf("failed to delete user in database : %v", err)
+		return status.Error(codes.Internal, message.InternalGracefulError)
 	}
 
-	return u.userRepo.Create(ctx, user)
-
-}
-
-func (u *userUseCase) UpdateUser(ctx context.Context, roleID int, section, route string, user *domain.User) (*domain.User, error) {
-	if err := u.authorize(ctx, roleID, section, route, "updaet"); err != nil {
-		return nil, err
-	}
-
-	return u.userRepo.Update(ctx, user)
-}
-
-func (u *userUseCase) DeleteUser(ctx context.Context, roleID int, section, route string, userID int) error {
-	if err := u.authorize(ctx, roleID, section, route, "delete"); err != nil {
-		return err
-	}
-
-	return u.userRepo.Delete(ctx, userID)
+	return nil
 }

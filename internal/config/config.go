@@ -1,6 +1,10 @@
 package config
 
-import "github.com/spf13/viper"
+import (
+	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+)
 
 type Config struct {
 	PgURL     string
@@ -9,8 +13,12 @@ type Config struct {
 	PortUsers string
 }
 
-func Load() (*Config, error) {
-	viper.SetEnvPrefix("APP")
+func Load(logger *logrus.Logger) (*Config, error) {
+	err := godotenv.Load("../../.env")
+	if err != nil {
+		logger.Fatal("Error loading .env file")
+	}
+
 	viper.AutomaticEnv()
 
 	cfg := &Config{
@@ -20,5 +28,4 @@ func Load() (*Config, error) {
 		PortUsers: viper.GetString("PORT_USERS"),
 	}
 	return cfg, nil
-
 }

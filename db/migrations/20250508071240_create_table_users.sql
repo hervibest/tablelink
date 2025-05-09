@@ -15,7 +15,3 @@ CREATE TABLE if NOT EXISTS users (
 -- +goose StatementBegin
 DROP TABLE IF EXISTS users;
 -- +goose StatementEnd
-
-
-
-Grpc-ddd-clean-arch

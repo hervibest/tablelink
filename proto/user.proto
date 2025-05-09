@@ -6,11 +6,11 @@ option go_package = "proto/userpb";
 
 import "google/protobuf/timestamp.proto";
 
-service UsersService {
-    rpc ListUsers (ListUsersRequest) returns (ListUsersResponse);
+service UserService {
+    rpc GetAllUser (GetAllUserRequest) returns (GetAllUserResponse);
     rpc CreateUser (CreateUserRequest) returns (CreateUserReponse);
     rpc UpdateUser (UpdateUserRequest) returns (UpdateUserReponse);
-    rpc DeleteUser (DeleteUserRequest) returns (DeleteeUserReponse);
+    rpc DeleteUser (DeleteUserRequest) returns (DeleteUserReponse);
 }
 
 message User {
@@ -22,23 +22,17 @@ message User {
     string last_access = 6;
 }
 
-message ListUsersRequest {
-    int32 role_id = 1;
-    string section = 2;
-    string route = 3;
+message GetAllUserRequest {
 }
 
-message ListUsersResponse {
+message GetAllUserResponse {
     bool status = 1;
     string message = 2;
     repeated User users = 3;
 }
 
 message CreateUserRequest {
-    int32 role_id = 1;
-    string section = 2;
-    string route = 3;
-    User user = 4;
+    User user = 1;
 }
 
 message CreateUserReponse {
@@ -47,10 +41,7 @@ message CreateUserReponse {
 }
 
 message UpdateUserRequest {
-    int32 role_id = 1;
-    string section = 2;
-    string route = 3;
-    User user = 4;
+    string name = 1;
 }
 
 message UpdateUserReponse {
@@ -59,13 +50,10 @@ message UpdateUserReponse {
 }
 
 message DeleteUserRequest {
-    int32 role_id = 1;
-    string section = 2;
-    string route = 3;
-    User user = 4;
+    int32 user_id = 1; 
 }
 
-message DeleteeUserReponse {
+message DeleteUserReponse {
     bool status = 1;
     string message = 2;  
 }

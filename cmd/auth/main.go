@@ -4,33 +4,55 @@ import (
 	"context"
 	"log"
 	"net"
-	"tablelink/internal/cache"
+
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+
+	"tablelink/internal/adapter"
 	"tablelink/internal/config"
+	grpcHandler "tablelink/internal/delivery/grpc/handler"
+	grpcInterceptor "tablelink/internal/delivery/grpc/interceptors"
+
 	"tablelink/internal/repository"
 	"tablelink/internal/usecase"
-
-	"github.com/jackc/pgx/v5/pgxpool"
+	"tablelink/proto/proto/authpb"
 )
 
 func main() {
-	cfg, err := config.Load()
+	ctx := context.Background()
+	logger := logrus.New()
+	cfg, err := config.Load(logger)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
-	pool, err := pgxpool.New(context.Background(), cfg.PgURL)
+	db := config.NewDB(ctx, logger, cfg)
+	defer db.Close()
+
+	redis := config.NewRedis(cfg)
+	defer redis.Close()
+
+	cacheAdapter := adapter.NewCacheAdapter(redis)
+
+	userRepo := repository.NewUserRepository(db)
+	rightsRepo := repository.NewRoleRightRepository(db)
+
+	rightUC := usecase.NewRightUseCase(rightsRepo, logger)
+	authUC := usecase.NewAuthUseCase(userRepo, cacheAdapter, logger)
+
+	lis, err := net.Listen("tcp", ":"+cfg.PortAuth)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatalf("failed to listen: %v", err)
 	}
-	defer pool.Close()
 
-	rdb := cache.NewRedis(cfg.RedisAddr)
-	defer rdb.Close()
+	server := grpc.NewServer(
+		grpc.UnaryInterceptor(grpcInterceptor.AuthInterceptor(authUC, rightUC)),
+	)
 
-	userRepo := repository.NewUserRepository(pool)
-	rightRepo := repository.NewRoleRightRepository(pool)
-	userUC := usecase.NewUserUseCase(userRepo, rightRepo)
+	authpb.RegisterAuthServiceServer(server, grpcHandler.NewAuthGRPCHandler(authUC))
 
-	lis, err := net.Listen("tcp", ":"+cfg.PortUsers)
-
+	log.Printf("Auth service listening on %s", cfg.PortAuth)
+	if err := server.Serve(lis); err != nil {
+		logger.Fatalf("failed to serve: %v", err)
+	}
 }

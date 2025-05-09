@@ -1,9 +1,9 @@
-package cache
+package config
 
 import "github.com/redis/go-redis/v9"
 
-func NewRedis(addr string) *redis.Client {
+func NewRedis(cfg *Config) *redis.Client {
 	return redis.NewClient(&redis.Options{
-		Addr: addr,
+		Addr: cfg.RedisAddr,
 	})
 }

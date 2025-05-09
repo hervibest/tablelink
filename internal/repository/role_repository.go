@@ -26,7 +26,7 @@ func (r *roleRepository) GetByID(ctx context.Context, id int) (*domain.Role, err
 	role := new(domain.Role)
 	query := `SELECT id, name FROM roles WHERE id = $1`
 
-	if err := pgxscan.Get(ctx, r.pool, role, query, id); err != nil {
+	if err := pgxscan.Get(ctx, r.pool, &role, query, id); err != nil {
 		return nil, err
 	}
 
